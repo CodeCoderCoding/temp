@@ -1,0 +1,68 @@
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.regex.Pattern;
+
+public class HtmlDivRemover3 {
+    public static void main(String[] args) throws Exception {
+        String htmlContent = "<html><body><div id='header'>Header</div><div id='cmnt2'>Comment 2</div><div id='content'>Content</div><div id='cmnt2'>Comment 2</div><div id='footer'>Footer</div></body></html>";
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        baos.write(htmlContent.getBytes());
+
+        String divIdPattern = "cmnt2";
+        ByteArrayOutputStream modifiedBaos = removeDivsByPattern(baos, divIdPattern);
+        System.out.println(modifiedBaos.toString());
+    }
+
+    public static ByteArrayOutputStream removeDivsByPattern(ByteArrayOutputStream baos, String pattern) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document document = builder.parse(new InputSource(new ByteArrayInputStream(baos.toByteArray())));
+
+        NodeList divNodes = document.getElementsByTagName("div");
+        Pattern regex = Pattern.compile(pattern);
+        for (int i = divNodes.getLength() - 1; i >= 0; i--) {
+            Element div = (Element) divNodes.item(i);
+            String divId = div.getAttribute("id");
+            if (regex.matcher(divId).matches()) {
+                Node parent = div.getParentNode();
+                parent.removeChild(div);
+            }
+        }
+
+        ByteArrayOutputStream modifiedBaos = new ByteArrayOutputStream();
+        StringBuilder sb = new StringBuilder();
+        serializeNode(document.getDocumentElement(), sb);
+        modifiedBaos.write(sb.toString().getBytes());
+        return modifiedBaos;
+    }
+
+    private static void serializeNode(Node node, StringBuilder sb) {
+        switch (node.getNodeType()) {
+            case Node.ELEMENT_NODE:
+                sb.append("<").append(node.getNodeName());
+                if (node.hasAttributes()) {
+                    for (int i = 0; i < node.getAttributes().getLength(); i++) {
+                        Node attribute = node.getAttributes().item(i);
+                        sb.append(" ").append(attribute.getNodeName()).append("=\"").append(attribute.getNodeValue()).append("\"");
+                    }
+                }
+                sb.append(">");
+                for (Node child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
+                    serializeNode(child, sb);
+                }
+                sb.append("</").append(node.getNodeName()).append(">");
+                break;
+            case Node.TEXT_NODE:
+                sb.append(node.getNodeValue());
+                break;
+        }
+    }
+}
