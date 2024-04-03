@@ -1,0 +1,49 @@
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.regex.Pattern;
+
+public class HtmlDivRemover {
+    public static void main(String[] args) throws Exception {
+        String htmlContent = "<html><body><div id='header'>Header</div><div id='_cmnt1'>Comment 1</div><div id='content'>Content</div><div id='_cmnt2'>Comment 2</div><div id='_cmnt3'>Comment 3</div><div id='footer'>Footer</div></body></html>";
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        baos.write(htmlContent.getBytes(), 0, htmlContent.length());
+
+        String divIdPattern = "_cmnt\\d+";
+        String modifiedHtml = removeDivsByPattern(new ByteArrayInputStream(baos.toByteArray()), divIdPattern);
+        System.out.println(modifiedHtml);
+    }
+
+    public static String removeDivsByPattern(ByteArrayInputStream bais, String pattern) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document document = builder.parse(new InputSource(bais));
+
+        NodeList divNodes = document.getElementsByTagName("div");
+        Pattern regex = Pattern.compile(pattern);
+        for (int i = 0; i < divNodes.getLength(); i++) {
+            Element div = (Element) divNodes.item(i);
+            String divId = div.getAttribute("id");
+            if (regex.matcher(divId).matches()) {
+                Node parent = div.getParentNode();
+                parent.removeChild(div);
+            }
+        }
+
+        return getStringFromDocument(document);
+    }
+
+    private static String getStringFromDocument(Document document) throws Exception {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        javax.xml.transform.Transformer transformer = javax.xml.transform.TransformerFactory.newInstance().newTransformer();
+        transformer.transform(new javax.xml.transform.dom.DOMSource(document), new javax.xml.transform.stream.StreamResult(baos));
+        return baos.toString();
+    }
+}
